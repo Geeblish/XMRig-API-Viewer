@@ -10,4 +10,6 @@ You can change it by downloading the html file and changing it to whatever value
 
 If you're connecting from outside your network make sure to port forward!
 
+If you are planning to use glitch, you might need to either enable https support on xmrig, or use http (not secure) on glitch. 
+
 Why is this description so much shorter than other repos.... hmmm

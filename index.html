@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Data Viewer</title>
+    <style>
+                :root {
+            --bg-color-dark: #0f1b2b; /* Darker blue background */
+            --bg-color-light: #e0f1fc; /* Light blue background */
+            --text-color-dark: #f1f1f1;
+            --text-color-light: #333;
+            --accent-color-dark: #4C9DFF; /* Lighter blue accent */
+            --accent-color-light: #0066cc; /* Darker blue accent */
+            --section-bg-dark: #1b2d42; /* Darker blue for sections */
+            --section-bg-light: #ffffff;
+            --button-bg-dark: #4C9DFF;
+            --button-bg-light: #0066cc;
+            --button-disabled-dark: #777;
+            --button-disabled-light: #aaa;
+        }
+
+        body {
+            background-color: var(--bg-color-dark);
+            color: var(--text-color-dark);
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s;
+        }
+
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: var(--accent-color-dark);
+        }
+
+        .input-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            border-radius: 5px;
+            border: none;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--button-bg-dark);
+            color: white;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        button:disabled {
+            background-color: var(--button-disabled-dark);
+            cursor: not-allowed;
+        }
+
+        .data-output {
+            margin-top: 30px;
+        }
+
+        .data-output h2 {
+            color: var(--accent-color-dark);
+        }
+
+        .data-section {
+            margin: 10px 0;
+            padding: 15px;
+            background-color: var(--section-bg-dark);
+            border-radius: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .data-section label {
+            font-weight: bold;
+        }
+
+        .data-section p {
+            margin: 5px 0;
+        }
+
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--accent-color-dark);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .light-mode {
+            --bg-color-dark: #e0f1fc;
+            --bg-color-light: #0f1b2b;
+            --text-color-dark: #333;
+            --text-color-light: #f1f1f1;
+            --accent-color-dark: #0066cc;
+            --accent-color-light: #4C9DFF;
+            --section-bg-dark: #ffffff;
+            --section-bg-light: #1b2d42;
+            --button-bg-dark: #0066cc;
+            --button-bg-light: #4C9DFF;
+            --button-disabled-dark: #aaa;
+            --button-disabled-light: #777;
+        }
+
+	.ip-address {
+            filter: blur(5px);
+            transition: filter 0.01s ease;
+	}
+
+	.ip-address:hover {
+            filter: blur(0);
+	}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>XMRig API Viewer (AKA Network Lagger 9000)</h1>
+            <p>Enter your XMRig API link and press lock to monitor your stats</p>
+        </header>
+
+        <div class="input-container">
+            <input type="text" id="apiUrl" placeholder="Enter API URL..." />
+            <button id="lockButton" onclick="lockApiUrl()">Lock</button>
+        </div>
+
+        <div class="data-output" id="dataOutput">
+            <!-- Data will be inserted here -->
+        </div>
+    </div>
+
+    <button class="mode-toggle" onclick="toggleMode()">Switch to Light Mode</button>
+
+    <script>
+        let apiUrl = '';
+        let apiInterval = null;
+        let darkMode = true;
+	let ip = '';
+
+        function lockApiUrl() {
+            const url = (document.getElementById('apiUrl').value.includes("http://") ? document.getElementById('apiUrl').value : 'http://' + document.getElementById('apiUrl').value + '/2/summary')
+            if (url) {
+                apiUrl = url;
+                document.getElementById('lockButton').disabled = true;
+                document.getElementById('apiUrl').disabled = true;
+                fetchData();
+                apiInterval = setInterval(fetchData, 1000);
+            }
+        }
+
+	async function getIp() {
+            let response = await fetch('https://api.ipify.org/');
+            let ipAddress = await response.text();
+            ip = ipAddress;
+        }
+	getIp();
+        async function fetchData() {
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+                const data = await response.json();
+                renderData(data);
+            } catch (error) {
+                document.getElementById('dataOutput').innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        function renderData(data) {
+            let htmlContent = `<div class="data-section"><h2>General Info</h2>
+                <p><strong>Worker ID:</strong> ${data.worker_id}</p>
+                <p><strong>Uptime:</strong> ${formatUptime(data.uptime)}</p>
+                <p><strong>Huge Pages:</strong> ${data.hugepages.length > 0 ? 'Yes' : 'No'}</p>
+                <p><strong>Algorithm:</strong> ${data.algo}</p>
+                <p><strong>Version:</strong> ${data.version}</p>
+		<p><strong>Paused:</strong> <span style="color: ${data.paused ? 'Red' : 'Green'}"> ${data.paused ? "True" : "False"}</span></p>
+		<p><strong>Donation:</strong> <span style="color: ${getDonationColor(data.donate_level)}"> ${data.donate_level}</span></p>
+            </div>`;
+
+            htmlContent += `<div class="data-section"><h2>Resources</h2>
+                <p><strong>Memory:</strong> Free: ${formatBytes(data.resources.memory.free)}, Total: ${formatBytes(data.resources.memory.total)}</p>
+                <p><strong>Load Average:</strong> ${data.resources.load_average.join(', ')}</p>
+                <p><strong>Hardware Concurrency:</strong> ${data.resources.hardware_concurrency}</p>
+            </div>`;
+
+            htmlContent += `<div class="data-section"><h2>Connection</h2>
+                <p><strong>Pool:</strong> ${data.connection.pool}</p>
+		<p><strong>IP:</strong> <span class="ip-address">${ip}</span></p>
+                <p><strong>Uptime:</strong> ${formatUptime(data.connection.uptime)}</p>
+                <p><strong>Ping:</strong> ${data.connection.ping} ms</p>
+                <p><strong>Accepted:</strong> ${data.connection.accepted}</p>
+                <p><strong>Failures:</strong> ${data.connection.rejected}</p>
+                <p><strong>Difficulty:</strong> ${data.connection.diff}</p>
+            </div>`;
+
+            htmlContent += `<div class="data-section"><h2>CPU Info</h2>
+                <p><strong>Brand:</strong> ${data.cpu.brand}</p>
+                <p><strong>Cores:</strong> ${data.cpu.cores}</p>
+                <p><strong>Threads:</strong> ${data.cpu.threads}</p>
+            </div>`;
+
+            htmlContent += `<div class="data-section"><h2>Hashrate</h2>
+                <p><strong>Total Hashrate:</strong> ${data.hashrate.total.join(', ')}</p>
+                <p><strong>Highest Hashrate:</strong> ${data.hashrate.highest}</p>
+            </div>`;
+
+            document.getElementById('dataOutput').innerHTML = htmlContent;
+        }
+
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hours}h ${minutes}m ${secs}s`;
+        }
+
+        function formatBytes(bytes) {
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            let i = 0;
+            while (bytes >= 1024 && i < sizes.length - 1) {
+                bytes /= 1024;
+                i++;
+            }
+            return `${bytes.toFixed(2)} ${sizes[i]}`;
+        }
+
+	function getDonationColor(level) {
+            level = Math.max(0, Math.min(5, level));
+
+            const green = 255 - (level * 50);
+            const red = level * 50;
+            return `rgb(${red}, ${green}, 0)`;    
+	}
+	document.getElementById('apiUrl').addEventListener("keypress", function(event) {
+            if (event.key == "Enter") {
+                event.preventDefault();
+                lockApiUrl();
+            }
+	});
+
+        function toggleMode() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('light-mode', !darkMode);
+            document.querySelector('.mode-toggle').textContent = darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+    </script>
+</body>
+</html>
